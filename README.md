@@ -1,1 +1,1 @@
-# StraCraft2Bot
+# StarCraft2Bot
