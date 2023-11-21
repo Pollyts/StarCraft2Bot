@@ -1,0 +1,30 @@
+https://burnysc2.github.io/python-sc2/docs/text_files/introduction.html#training-a-unit
+
+# Resources and supply
+self.minerals: int
+self.vespene: int
+self.supply_army: int # 0 at game start
+self.supply_workers: int # 12 at game start
+self.supply_cap: int # 14 for zerg, 15 for T and P at game start
+self.supply_used: int # 12 at game start
+self.supply_left: int # 2 for zerg, 3 for T and P at game start
+
+# Units
+self.warp_gate_count: Units # Your warp gate count (only protoss)
+self.idle_worker_count: int # Workers that are doing nothing
+self.army_count: int # Amount of army units
+self.workers: Units # Your workers
+self.larva: Units # Your larva (only zerg)
+self.townhalls: Units # Your townhalls (nexus, hatchery, lair, hive, command center, orbital command, planetary fortress
+self.gas_buildings: Units # Your gas structures (refinery, extractor, assimilator
+self.units: Units # Your units (includes larva and workers)
+self.structures: Units # Your structures (includes townhalls and gas buildings)
+
+# Other information about your bot
+self.race: Race # The race your bot plays. If you chose random, your bot gets assigned a race and the assigned race will be in here (not random)
+self.player_id: int # Your bot id (can be 1 or 2 in a 2 player game)
+# Your spawn location (your first townhall location)
+self.start_location: Point2
+# Location of your main base ramp, and has some information on how to wall the main base as terran bot (see GameInfo)
+self.main_base_ramp: Ramp
+
