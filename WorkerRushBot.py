@@ -86,7 +86,7 @@ class WorkerRushBot(BotAI):
                 print("First Barrack")
                 if self.can_afford(UnitTypeId.BARRACKS):
                     makingFirstBarracks = True
-                    worker_unit = self.workers[0]
+                    worker_unit = self.workers.filter(lambda worker: worker.is_collecting or worker.is_idle).random
                     if worker_unit is not None:    
                         makingFirstBarracks = True                    
                         if isStartLocationInTop:
@@ -123,7 +123,7 @@ class WorkerRushBot(BotAI):
                 if self.can_afford(UnitTypeId.BARRACKS):
                     makingSecondBarracks = True
                     print("SecondBarrack")
-                    worker_unit = self.workers[0]
+                    worker_unit = self.workers.filter(lambda worker: worker.is_collecting or worker.is_idle).random
                     if worker_unit is not None:                        
                         if isStartLocationInTop:
                             worker_unit.build(UnitTypeId.BARRACKS, Point3((105,41)))                               
@@ -131,10 +131,10 @@ class WorkerRushBot(BotAI):
                             worker_unit.build(UnitTypeId.BARRACKS, Point3((27,91)))
                     
 
-            if self.structures(UnitTypeId.BARRACKS).amount >= 2:
+            if self.structures(UnitTypeId.BARRACKS).amount >= 2 and not self.already_pending(UnitTypeId.BUNKER) and self.structures(UnitTypeId.BUNKER).amount == 0:
                 #print("Making Bunker")
                 if self.can_afford(UnitTypeId.BUNKER):
-                    worker_unit = self.workers[0]
+                    worker_unit = self.workers.filter(lambda worker: worker.is_collecting or worker.is_idle).random
                     if worker_unit is not None:                        
                         if isStartLocationInTop:
                             worker_unit.build(UnitTypeId.BUNKER, Point2((61,98)))                               
@@ -203,7 +203,7 @@ class WorkerRushBot(BotAI):
             # Build second Supply Depot,
             if self.supply_workers >= 20 and self.structures(UnitTypeId.SUPPLYDEPOT).amount == 1 and not self.already_pending(UnitTypeId.SUPPLYDEPOT):
                 if self.can_afford(UnitTypeId.SUPPLYDEPOT):
-                    worker_unit = self.workers[0]
+                    worker_unit = self.workers.filter(lambda worker: worker.is_collecting or worker.is_idle).random
                     if worker_unit is not None:                        
                         if isStartLocationInTop:
                             worker_unit.build(UnitTypeId.SUPPLYDEPOT, Point3((61,96,10)))                                       
@@ -223,7 +223,8 @@ class WorkerRushBot(BotAI):
                     UnitTypeId.SUPPLYDEPOT,
                     near=command_center.position.towards(self.game_info.map_center, 8))
             
-            if self.supply_left < 10 and self.supply_cap >= 39 and not self.already_pending(UnitTypeId.SUPPLYDEPOT):
+            #if self.supply_left < 10 and self.supply_cap >= 39 and not self.already_pending(UnitTypeId.SUPPLYDEPOT):
+            if self.supply_left < 10 and self.supply_cap >= 39:
                     # Budova bude postavena poblíž Command Center směrem ke středu mapy
                     # SCV pro stavbu bude vybráno automaticky viz dokumentace
                 await self.build(
@@ -232,7 +233,6 @@ class WorkerRushBot(BotAI):
                 
             # Build third Barracks
             if self.supply_workers >= 20 and self.structures(UnitTypeId.BARRACKS).amount == 2 and makingSecondBarracks == True:
-                print("ThirdBarrack")
                 if self.can_afford(UnitTypeId.BARRACKS):
                     await self.build(
                         UnitTypeId.BARRACKS,
