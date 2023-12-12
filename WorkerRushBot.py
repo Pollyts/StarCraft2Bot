@@ -15,6 +15,7 @@ from sc2.player import Human
 import random
 
 # from sc2.player import Bot, Computer
+firstSupply = False
 reaperCreated = False
 reapersOnPosition1 = False
 reapersOnPosition2 = False
@@ -30,44 +31,71 @@ class WorkerRushBot(BotAI):
     async def on_step(self, iteration: int):        
 
         if iteration % 25 == 0:
-            await self.distribute_workers()
+            await self.distribute_workers()                
 
         if self.townhalls:
             # První Command Center
             command_center = self.townhalls[0]
             isStartLocationInTop = command_center.position == Point2((43.5, 110.5))
 
+            if isStartLocationInTop:
+                bunkerPosition = Point2((61,98))                              
+            else:
+                bunkerPosition = Point2((72,33))      
+        
+            if iteration % 10 == 0:
+                idle_units = self.units(UnitTypeId.MARINE).idle
+
+                # Check for enemies near the bunker
+                enemies_near_bunker = self.enemy_units.filter(lambda unit: unit.is_visible and unit.distance_to(bunkerPosition) < 6)
+
+                # If enemies are near, send idle marines to assist
+                if enemies_near_bunker.exists and idle_units.exists:
+                    for marine in idle_units:
+                        self.do(marine.attack(enemies_near_bunker.closest_to(marine).position))   
+
             # Trénování SCV
             # Bot trénuje nová SCV, jestliže je jich méně než 17
             if self.can_afford(UnitTypeId.SCV) and self.supply_workers <= 20 and command_center.is_idle:
                 command_center.train(UnitTypeId.SCV)
 
+            global firstSupply
+
             # Build first Supply Depot,
-            #if self.supply_workers >= 14 and (self.structures(UnitTypeId.SUPPLYDEPOT)).amount < 1:   
-            if self.supply_workers >= 14 and self.supply_cap<16 and not self.already_pending(UnitTypeId.SUPPLYDEPOT):     
-                print((self.structures(UnitTypeId.SUPPLYDEPOT)).amount)          
-                if self.can_afford(UnitTypeId.SUPPLYDEPOT):
-                    worker_unit = self.workers[0]
-                    if worker_unit is not None:                        
-                        if isStartLocationInTop:
-                            worker_unit.build(UnitTypeId.SUPPLYDEPOT, Point2((64,99)))                                                
-                        else:
-                            worker_unit.build(UnitTypeId.SUPPLYDEPOT, Point2((73,36)))
+            if self.supply_used >= 14 and firstSupply==False:        
+                if self.can_afford(UnitTypeId.SUPPLYDEPOT):                    
+                    print("first supply")
+                    firstSupply = True
+                    await self.build(
+                    UnitTypeId.SUPPLYDEPOT,
+                    near=command_center.position.towards(self.game_info.map_center, 4))
+
+            # if self.supply_left < 6 and self.supply_used >= 14 and not self.already_pending(UnitTypeId.SUPPLYDEPOT):
+            #     if self.can_afford(UnitTypeId.SUPPLYDEPOT):
+            #         # Budova bude postavena poblíž Command Center směrem ke středu mapy
+            #         # SCV pro stavbu bude vybráno automaticky viz dokumentace
+            #         await self.build(
+            #             UnitTypeId.SUPPLYDEPOT,
+            #             near=command_center.position.towards(self.game_info.map_center, 8))
 
             global makingFirstBarracks
 
             # Build first Barracks
             #if self.supply_workers >= 16 and self.structures(UnitTypeId.BARRACKS).amount == 0:
-            if self.supply_workers >= 16 and makingFirstBarracks == False:
-                #print("Making Barracks")
+            if self.supply_workers >= 16 and makingFirstBarracks == False and not self.already_pending(UnitTypeId.BARRACKS):
+                print("First Barrack")
                 if self.can_afford(UnitTypeId.BARRACKS):
+                    makingFirstBarracks = True
                     worker_unit = self.workers[0]
-                    if worker_unit is not None:                        
+                    if worker_unit is not None:    
+                        makingFirstBarracks = True                    
                         if isStartLocationInTop:
                             worker_unit.build(UnitTypeId.BARRACKS, Point3((54,102,10)))                                         
                         else:
                             worker_unit.build(UnitTypeId.BARRACKS, Point3((80,29,10)))
-                        makingFirstBarracks = True
+                    # await self.build(
+                    #     UnitTypeId.BARRACKS,
+                    #     near=command_center.position.towards(self.game_info.map_center, 8))                         
 
             # Build Gas
             if (self.structures(UnitTypeId.BARRACKS).amount > 0 and self.already_pending(UnitTypeId.REFINERY) < 1 and self.structures(UnitTypeId.REFINERY).amount == 0) or (self.supply_workers >= 18 and self.structures(UnitTypeId.REFINERY).amount == 1):
@@ -91,15 +119,17 @@ class WorkerRushBot(BotAI):
             global makingSecondBarracks
 
             # Build Proxy Barracks
-            if self.supply_workers >= 16 and makingFirstBarracks == True:
+            if self.supply_workers >= 16 and makingFirstBarracks == True and makingSecondBarracks == False and self.structures(UnitTypeId.BARRACKS).amount == 1:                
                 if self.can_afford(UnitTypeId.BARRACKS):
+                    makingSecondBarracks = True
+                    print("SecondBarrack")
                     worker_unit = self.workers[0]
                     if worker_unit is not None:                        
                         if isStartLocationInTop:
-                            worker_unit.build(UnitTypeId.BARRACKS, Point3((105,41,10)))                               
+                            worker_unit.build(UnitTypeId.BARRACKS, Point3((105,41)))                               
                         else:
-                            worker_unit.build(UnitTypeId.BARRACKS, Point3((27,91,10)))
-                        makingSecondBarracks = True
+                            worker_unit.build(UnitTypeId.BARRACKS, Point3((27,91)))
+                    
 
             if self.structures(UnitTypeId.BARRACKS).amount >= 2:
                 #print("Making Bunker")
@@ -138,14 +168,7 @@ class WorkerRushBot(BotAI):
                         for marine in marinesInRadius:
                             if marine.is_idle and bunker.is_ready and bunker.cargo_used < bunker.cargo_max:
                                 bunker(AbilityId.LOAD_BUNKER, marine)
-
-            if self.minerals > 450 and self.structures(UnitTypeId.BARRACKS).amount <= 6:
-                if self.can_afford(UnitTypeId.BARRACKS):
-                    worker_unit = self.workers[0]
-                    if worker_unit is not None:                        
-                        await self.build(
-                            UnitTypeId.BARRACKS,
-                            near=command_center.position.towards(self.game_info.map_center, 8))
+            
 
             # Trénování jednotky REAPER
             # Pouze, má-li bot postavené Barracks a může si jednotku dovolit
@@ -178,7 +201,7 @@ class WorkerRushBot(BotAI):
                 
 
             # Build second Supply Depot,
-            if self.supply_workers >= 20 and self.structures(UnitTypeId.SUPPLYDEPOT).amount == 1:
+            if self.supply_workers >= 20 and self.structures(UnitTypeId.SUPPLYDEPOT).amount == 1 and not self.already_pending(UnitTypeId.SUPPLYDEPOT):
                 if self.can_afford(UnitTypeId.SUPPLYDEPOT):
                     worker_unit = self.workers[0]
                     if worker_unit is not None:                        
@@ -208,15 +231,24 @@ class WorkerRushBot(BotAI):
                     near=command_center.position.towards(self.game_info.map_center, 8))
                 
             # Build third Barracks
-            if self.supply_workers >= 20 and self.structures(UnitTypeId.BARRACKS).amount == 2:
-                #print("Making Barracks")
+            if self.supply_workers >= 20 and self.structures(UnitTypeId.BARRACKS).amount == 2 and makingSecondBarracks == True:
+                print("ThirdBarrack")
                 if self.can_afford(UnitTypeId.BARRACKS):
-                    worker_unit = self.workers[0]
-                    if worker_unit is not None:                        
-                        if isStartLocationInTop:
-                            worker_unit.build(UnitTypeId.BARRACKS, Point3((58,104,10)))                                         
-                        else:
-                            worker_unit.build(UnitTypeId.BARRACKS, Point3((73,27,10)))
+                    await self.build(
+                        UnitTypeId.BARRACKS,
+                        near=command_center.position.towards(self.game_info.map_center, 8))
+                    # worker_unit = self.workers[0]
+                    # if worker_unit is not None:                        
+                    #     if isStartLocationInTop:
+                    #         worker_unit.build(UnitTypeId.BARRACKS, Point3((58,104,10)))                                         
+                    #     else:
+                    #         worker_unit.build(UnitTypeId.BARRACKS, Point3((73,27,10)))
+
+            if self.minerals > 450 and makingSecondBarracks == True and self.structures(UnitTypeId.BARRACKS).amount <= 6:
+                if self.can_afford(UnitTypeId.BARRACKS):                      
+                    await self.build(
+                        UnitTypeId.BARRACKS,
+                        near=command_center.position.towards(self.game_info.map_center, 8))
             
             # for depo in self.structures(UnitTypeId.SUPPLYDEPOT).ready:
             # # Check if the ability is available
@@ -281,7 +313,7 @@ class WorkerRushBot(BotAI):
             
             global havingResearchBay
 
-            if self.structures(UnitTypeId.BARRACKS).amount > 6 and havingResearchBay == False:
+            if self.structures(UnitTypeId.BARRACKS).amount > 5 and havingResearchBay == False:
                 if self.can_afford(UnitTypeId.ENGINEERINGBAY):
                     havingResearchBay = True
                     await self.build(
@@ -401,7 +433,7 @@ class WorkerRushBot(BotAI):
             Point2((p.x, p.y - d)),
             Point2((p.x, p.y + d)),
         }
-
+    
     # stolen and modified from position.py
     def neighbors8(self, position, distance=1):
         p = position
